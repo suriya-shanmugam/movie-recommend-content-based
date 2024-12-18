@@ -12,7 +12,7 @@ warnings.simplefilter(action='ignore', category=FutureWarning)
 
 # Title and description of the app
 st.title("Movie Recommendation System")
-st.write("Explore movies and get personalized recommendations based on your preferences!")
+st.write("Search for movies, select one, and get personalized recommendations!")
 
 # Load dataset
 @st.cache_data  # Cache data to optimize performance
@@ -65,27 +65,41 @@ def movie_finder(title):
     return closest_match[0]
 
 # Recommendation function
-def get_content_based_recommendations(title_string, n_recommendations=10):
-    title = movie_finder(title_string)
-    idx = dict(zip(movies['title'], list(movies.index)))[title]
+def get_content_based_recommendations(selected_title, n_recommendations=10):
+    idx = dict(zip(movies['title'], list(movies.index)))[selected_title]
     sim_scores = list(enumerate(cosine_sim[idx]))
     sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
     sim_scores = sim_scores[1:(n_recommendations + 1)]
     similar_movies_indices = [i[0] for i in sim_scores]
-    return title, movies.iloc[similar_movies_indices]
+    return selected_title, movies.iloc[similar_movies_indices]
 
 # Streamlit user interface
-st.sidebar.header("Movie Search")
-user_input_title = st.sidebar.text_input("Enter a movie title:", "Toy Story (1995)")
-n_recommendations = st.sidebar.slider("Number of recommendations:", 1, 20, 10)
 
-if st.sidebar.button("Get Recommendations"):
-    try:
-        selected_title, recommended_movies = get_content_based_recommendations(user_input_title, n_recommendations)
-        st.write(f"Because you watched **{selected_title}**, you might like:")
-        st.table(recommended_movies[['title', 'year', 'genres']])
-    except Exception as e:
-        st.error(f"Error: {e}. Please try another title.")
+## Search and Select Movie Section
+st.header("Search and Select a Movie")
+
+search_query = st.text_input("Search for a movie by title or keyword:")
+
+if search_query:
+    # Filter the DataFrame based on the search query
+    search_results = movies[movies['title'].str.contains(search_query, case=False, na=False)]
+    
+    if not search_results.empty:
+        # Allow user to select a movie from the search results
+        selected_movie = st.selectbox("Select a movie from the search results:", search_results['title'])
+        
+        if selected_movie:
+            n_recommendations = st.slider("Number of recommendations:", 1, 20, 10)
+            
+            if st.button("Get Recommendations"):
+                try:
+                    selected_title, recommended_movies = get_content_based_recommendations(selected_movie, n_recommendations)
+                    st.write(f"Because you watched **{selected_title}**, you might like:")
+                    st.table(recommended_movies[['title', 'year', 'genres']])
+                except Exception as e:
+                    st.error(f"Error: {e}. Please try another title.")
+    else:
+        st.write("No matching movies found. Try a different keyword.")
 
 # Visualization: Genre distribution bar chart
 if st.checkbox("Show Genre Distribution"):
